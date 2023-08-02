@@ -67,7 +67,7 @@ fn main() {
             }
         }
 
-        if let Some(path) = bfs_bezier(
+        if let Some((original_path, smoothed_path)) = bfs_bezier(
             Cell {
                 block_x: start_x,
                 block_y: start_y,
@@ -81,13 +81,27 @@ fn main() {
             &mut buffer,
             pixel_size,
         ) {
-            let path_color = 0xFFFF00; // blue
-            for cell in path {
+            let original_path_color = 0x800080; // purple
+            let smoothed_path_color = 0xFFA500; // orange
+        
+            // Plot the original path
+            for cell in &original_path {
                 for i in 0..pixel_size {
                     for j in 0..pixel_size {
                         scaled_buffer[((cell.block_y * pixel_size + j) * width
                             + cell.block_x * pixel_size
-                            + i) as usize] = path_color;
+                            + i) as usize] = original_path_color;
+                    }
+                }
+            }
+        
+            // Plot the smoothed path
+            for cell in &smoothed_path {
+                for i in 0..pixel_size {
+                    for j in 0..pixel_size {
+                        scaled_buffer[((cell.block_y * pixel_size + j) * width
+                            + cell.block_x * pixel_size
+                            + i) as usize] = smoothed_path_color;
                     }
                 }
             }

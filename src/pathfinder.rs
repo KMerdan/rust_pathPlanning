@@ -18,6 +18,7 @@ pub fn a_star(
     let mut came_from = HashMap::new();
     let mut g_score = HashMap::new();
     let mut f_score = HashMap::new();
+    let min_distance = 10.0;
 
     g_score.insert(start, 0.0);
     f_score.insert(start, start.heuristic(&goal, pixel_size));
@@ -41,7 +42,7 @@ pub fn a_star(
             return Some(path);
         }
 
-        for neighbor in current.cell.neighbors(width, height, buffer, pixel_size) {
+        for neighbor in current.cell.neighbors(width, height, buffer, pixel_size, min_distance) {
             let tentative_g_score =
                 g_score.get(&current.cell).unwrap() + current.cell.heuristic(&neighbor, pixel_size);
             if let Some(&g) = g_score.get(&neighbor) {
@@ -78,6 +79,7 @@ pub fn bfs(
     let mut queue = VecDeque::new();
     let mut came_from = HashMap::new();
     let mut visited = HashSet::new();
+    let min_distance = 10.0;
 
     queue.push_back(start);
     visited.insert(start);
@@ -92,7 +94,7 @@ pub fn bfs(
             return Some(path);
         }
 
-        let neighbors = current.neighbors(width, height, &buffer, pixel_size);
+        let neighbors = current.neighbors(width, height, &buffer, pixel_size, min_distance);
         for neighbor in neighbors {
             if !visited.contains(&neighbor) {
                 visited.insert(neighbor);
@@ -112,10 +114,11 @@ pub fn bfs_bezier(
     height: usize,
     buffer: &mut Vec<Vec<u32>>,
     pixel_size: usize,
-) -> Option<Vec<Cell>> {
+) -> Option<(Vec<Cell>, Vec<Cell>)> {
     let mut queue = VecDeque::new();
     let mut came_from = HashMap::new();
     let mut visited = HashSet::new();
+    let min_distance = 10.0;
 
     queue.push_back(start);
     visited.insert(start);
@@ -127,14 +130,16 @@ pub fn bfs_bezier(
                 path.push(*parent);
             }
             path.reverse();
+            let original_path = path.clone();
 
             // Smooth the path using a Bezier curve
-            let smoothed_path = smooth_path(&path, width, height, buffer, pixel_size);
+            let smoothed_path = smooth_path(&path, pixel_size);
 
-            return Some(smoothed_path);
+            return Some((original_path, smoothed_path));
         }
 
-        let neighbors = current.neighbors(width, height, &buffer, pixel_size);
+        let neighbors = current.neighbors_old(width, height, &buffer, pixel_size);
+        // let neighbors = current.neighbors(width, height, &buffer, pixel_size, min_distance);
         for neighbor in neighbors {
             if !visited.contains(&neighbor) {
                 visited.insert(neighbor);
@@ -147,13 +152,7 @@ pub fn bfs_bezier(
     None
 }
 
-fn smooth_path(
-    path: &Vec<Cell>,
-    width: usize,
-    height: usize,
-    buffer: &Vec<Vec<u32>>,
-    pixel_size: usize,
-) -> Vec<Cell> {
+fn smooth_path(path: &Vec<Cell>, pixel_size: usize) -> Vec<Cell> {
     // Convert the path to a vector of control points
     let control_points = path
         .iter()
@@ -168,7 +167,7 @@ fn smooth_path(
         let next = control_points[i + 1];
         let angle =
             (next.y - curr.y).atan2(next.x - curr.x) - (curr.y - prev.y).atan2(curr.x - prev.x);
-        if angle.abs() > (PI / 3.0) as f32 {
+        if angle.abs() > (PI / 1.0) as f32 {
             let new_point = Point2D::new((curr.x + next.x) / 2.0, (curr.y + next.y) / 2.0);
             smoothed_points.push(prev);
             smoothed_points.push(new_point);

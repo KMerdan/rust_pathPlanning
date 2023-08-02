@@ -23,7 +23,7 @@ impl Cell {
 }
 
 impl Cell {
-    pub fn neighbors(
+    pub fn neighbors_old(
         &self,
         width: usize,
         height: usize,
@@ -68,5 +68,62 @@ impl Cell {
         let cx2 = (other.block_x * pixel_size + pixel_size / 2) as f64;
         let cy2 = (other.block_y * pixel_size + pixel_size / 2) as f64;
         ((dx * dx + dy * dy).sqrt() + (cx1 - cx2).abs() + (cy1 - cy2).abs()) / 2.0
+    }
+}
+
+impl Cell {
+    pub fn neighbors(
+        &self,
+        width: usize,
+        height: usize,
+        buffer: &Vec<Vec<u32>>,
+        pixel_size: usize,
+        min_distance: f32,
+    ) -> Vec<Cell> {
+        let mut result = Vec::new();
+
+        for i in -1..=1 {
+            for j in -1..=1 {
+                if i == 0 && j == 0 {
+                    continue;
+                }
+
+                let x = self.block_x as i32 + i;
+                let y = self.block_y as i32 + j;
+
+                if x < 0 || x >= width as i32 || y < 0 || y >= height as i32 {
+                    continue;
+                }
+
+                let mut too_close = false;
+                for k in 0..pixel_size {
+                    for l in 0..pixel_size {
+                        let px = x as usize * pixel_size + k;
+                        let py = y as usize * pixel_size + l;
+                        if buffer[py][px] != 0 {
+                            let dx = (px as f32 - self.to_point(pixel_size).x) / pixel_size as f32;
+                            let dy = (py as f32 - self.to_point(pixel_size).y) / pixel_size as f32;
+                            let distance = (dx * dx + dy * dy).sqrt();
+                            if distance < min_distance {
+                                too_close = true;
+                                break;
+                            }
+                        }
+                    }
+                    if too_close {
+                        break;
+                    }
+                }
+
+                if !too_close {
+                    result.push(Cell {
+                        block_x: x as usize,
+                        block_y: y as usize,
+                    });
+                }
+            }
+        }
+
+        result
     }
 }
