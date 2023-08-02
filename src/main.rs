@@ -18,8 +18,8 @@ fn main() {
     let seed = rng.gen();
     let perlin = Perlin::new(seed);
     let mut buffer: Vec<u32> = vec![0; width * height];
-    let mut frequency = 1.0;
-    let mut amplitude = 1.0;
+    let mut frequency = 0.7;
+    let mut amplitude = 1.5;
     for x in 0..width {
         for y in 0..height {
             let value = perlin.get([(x as f64) / 100.0 * frequency, (y as f64) / 100.0 * frequency]) * amplitude;
@@ -28,11 +28,13 @@ fn main() {
         }
     }
 
-    let pixel_size = 2;
+    let pixel_size = 10;
     let mut window = Window::new(
         "Map",
-        width * pixel_size,
-        height * pixel_size,
+        // width * pixel_size,
+        // height * pixel_size,
+        width,
+        height,
         WindowOptions::default(),
     )
     .unwrap_or_else(|e| {
