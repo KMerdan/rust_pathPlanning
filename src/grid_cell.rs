@@ -127,3 +127,15 @@ impl Cell {
         result
     }
 }
+
+impl Cell {
+    pub fn distance(&self, other: &Self) -> f32 {
+        let dx = (self.block_x as f32 - other.block_x as f32).abs();
+        let dy = (self.block_y as f32 - other.block_y as f32).abs();
+        (dx * dx + dy * dy).sqrt()
+    }
+
+    pub fn is_obstacle(&self, buffer: &[Vec<u32>]) -> bool {
+        buffer[self.block_y][self.block_x] == 0
+    }
+}

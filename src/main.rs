@@ -7,7 +7,7 @@ mod pathfinder;
 mod selected_point;
 
 use grid_cell::Cell;
-use pathfinder::{a_star, bfs, bfs_bezier};
+use pathfinder::{a_star, bfs, bfs_bezier, floyd_warshall};
 
 fn main() {
     let mut rng = rand::thread_rng();
@@ -83,7 +83,7 @@ fn main() {
         ) {
             let original_path_color = 0x800080; // purple
             let smoothed_path_color = 0xFFA500; // orange
-        
+
             // Plot the original path
             for cell in &original_path {
                 for i in 0..pixel_size {
@@ -94,7 +94,7 @@ fn main() {
                     }
                 }
             }
-        
+
             // Plot the smoothed path
             for cell in &smoothed_path {
                 for i in 0..pixel_size {

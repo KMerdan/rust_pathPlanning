@@ -1,7 +1,7 @@
 use euclid::{Point2D, Vector2D};
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 use crate::grid_cell::Cell;
 use crate::selected_point::Node;
@@ -42,7 +42,10 @@ pub fn a_star(
             return Some(path);
         }
 
-        for neighbor in current.cell.neighbors(width, height, buffer, pixel_size, min_distance) {
+        for neighbor in current
+            .cell
+            .neighbors(width, height, buffer, pixel_size, min_distance)
+        {
             let tentative_g_score =
                 g_score.get(&current.cell).unwrap() + current.cell.heuristic(&neighbor, pixel_size);
             if let Some(&g) = g_score.get(&neighbor) {
@@ -227,4 +230,82 @@ fn point_on_bezier_path(path: &Vec<Point2D<f32, ()>>, t: f32) -> Point2D<f32, ()
         }
     }
     b[0]
+}
+
+pub fn floyd_warshall(
+    start: Cell,
+    goal: Cell,
+    width: usize,
+    height: usize,
+    buffer: &mut Vec<Vec<u32>>,
+    pixel_size: usize,
+) -> Option<(Vec<Cell>, Vec<Cell>)> {
+    // Initialize the distance matrix with infinity for all pairs of cells
+    let mut dist = vec![vec![f32::INFINITY; width]; height];
+    
+    // Set the distance of each cell to itself to 0
+    for i in 0..width {
+        for j in 0..height {
+            if Cell::from_point(Point2D::new(i as f32, j as f32), pixel_size).is_obstacle(&buffer) {
+                continue;
+            }
+            dist[i-1][j-1] = 0.0;
+        }
+    }
+    println!("Dist dimensions: {} x {}", dist.len(), dist[0].len());
+
+    // Update the distance matrix with the actual distances between cells
+    for i in 0..width {
+        for j in 0..height {
+            if Cell::from_point(Point2D::new(i as f32, j as f32), pixel_size).is_obstacle(&buffer) {
+                continue;
+            }
+            let current = Cell::from_point(Point2D::new(i as f32, j as f32), pixel_size);
+            let neighbors = current.neighbors_old(width, height, &buffer, pixel_size);
+            for neighbor in neighbors {
+                let weight = current.distance(&neighbor) as f32;
+                dist[current.to_point(pixel_size).x as usize]
+                    [current.to_point(pixel_size).y as usize] = weight;
+            }
+        }
+    }
+
+    // Run the Floyd-Warshall algorithm to find the shortest path between all pairs of cells
+    for k in 0..width {
+        for i in 0..width {
+            for j in 0..height {
+                if dist[i][k] + dist[k][j] < dist[i][j] {
+                    dist[i][j] = dist[i][k] + dist[k][j];
+                }
+            }
+        }
+    }
+
+    // Reconstruct the path from start to goal using the distance matrix
+    let mut path = vec![start];
+    let mut current = start;
+    while current != goal {
+        let neighbors = current.neighbors_old(width, height, &buffer, pixel_size);
+        let mut next = None;
+        let mut min_dist = f32::INFINITY;
+        for neighbor in neighbors {
+            let dist = dist[neighbor.to_point(pixel_size).x as usize]
+                [neighbor.to_point(pixel_size).y as usize];
+            if dist < min_dist {
+                min_dist = dist;
+                next = Some(neighbor);
+            }
+        }
+        if let Some(next_cell) = next {
+            path.push(next_cell);
+            current = next_cell;
+        } else {
+            return None;
+        }
+    }
+
+    // Smooth the path using a Bezier curve
+    let smoothed_path = smooth_path(&path, pixel_size);
+
+    Some((path, smoothed_path))
 }
