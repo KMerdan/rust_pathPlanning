@@ -11,9 +11,9 @@ use pathfinder::{a_star, bfs, bfs_bezier, douglas_peucker};
 
 fn main() {
     let mut rng = rand::thread_rng();
-    let width: usize = 800;
-    let height: usize = 600;
-    let pixel_size = 10;
+    let width: usize = 80;
+    let height: usize = 60;
+    let pixel_size = 1;
     let block_width = width / pixel_size;
     let block_height = height / pixel_size;
     let seed = rng.gen();
@@ -32,11 +32,18 @@ fn main() {
         }
     }
 
-    let mut window =
-        Window::new("Map", width, height, WindowOptions::default()).unwrap_or_else(|e| {
-            panic!("{}", e);
-        });
-
+    let mut window = Window::new(
+        "Map",
+        width,
+        height,
+        WindowOptions {
+            scale: minifb::Scale::X8,
+            ..WindowOptions::default()
+        },
+    )
+    .unwrap_or_else(|e| {
+        panic!("{}", e);
+    });
     // Generate random start and goal positions in free space
     let mut start_x;
     let mut start_y;
@@ -68,7 +75,7 @@ fn main() {
         }
 
         if let Some((original_path, smoothed_path)) = bfs_bezier(
-        // if let Some((original_path, smoothed_path)) = a_star(
+            // if let Some((original_path, smoothed_path)) = a_star(
             Cell {
                 block_x: start_x,
                 block_y: start_y,
@@ -106,7 +113,7 @@ fn main() {
                     }
                 }
             }
-            let waypoints = douglas_peucker(&smoothed_path, 2.0);
+            let waypoints = douglas_peucker(&smoothed_path, 1.0);
 
             // Plot the waypoints path
             for cell in &waypoints {

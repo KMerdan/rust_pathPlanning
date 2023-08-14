@@ -138,7 +138,6 @@ pub fn bfs_bezier(
     let mut queue = VecDeque::new();
     let mut came_from = HashMap::new();
     let mut visited = HashSet::new();
-    let min_distance = 10.0;
 
     queue.push_back(start);
     visited.insert(start);
