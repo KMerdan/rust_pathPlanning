@@ -1,10 +1,20 @@
 use euclid::Point2D;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Cell {
     pub block_x: usize,
     pub block_y: usize,
 }
+
+impl Cell {
+    pub fn new(block_x: usize, block_y: usize, pixel_size: usize) -> Self {
+        Self {
+            block_x: block_x / pixel_size,
+            block_y: block_y / pixel_size,
+        }
+    }
+}
+
 impl Cell {
     pub fn from_point(point: Point2D<f32, ()>, block_size: usize) -> Self {
         let block_x = (point.x / block_size as f32).floor() as usize;
@@ -100,7 +110,7 @@ impl Cell {
                     for l in 0..pixel_size {
                         let px = x as usize * pixel_size + k;
                         let py = y as usize * pixel_size + l;
-                        if buffer[py][px] != 0 {
+                        if py >= buffer.len() || px >= buffer[py].len() || buffer[py][px] != 0 {
                             let dx = (px as f32 - self.to_point(pixel_size).x) / pixel_size as f32;
                             let dy = (py as f32 - self.to_point(pixel_size).y) / pixel_size as f32;
                             let distance = (dx * dx + dy * dy).sqrt();
@@ -116,10 +126,7 @@ impl Cell {
                 }
 
                 if !too_close {
-                    result.push(Cell {
-                        block_x: x as usize,
-                        block_y: y as usize,
-                    });
+                    result.push(Cell::new(x as usize, y as usize, pixel_size));
                 }
             }
         }
