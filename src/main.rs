@@ -7,7 +7,7 @@ mod pathfinder;
 mod selected_point;
 
 use grid_cell::Cell;
-use pathfinder::{a_star, bfs, bfs_bezier, floyd_warshall};
+use pathfinder::{a_star, bfs, bfs_bezier, douglas_peucker};
 
 fn main() {
     let mut rng = rand::thread_rng();
@@ -68,6 +68,7 @@ fn main() {
         }
 
         if let Some((original_path, smoothed_path)) = bfs_bezier(
+        // if let Some((original_path, smoothed_path)) = a_star(
             Cell {
                 block_x: start_x,
                 block_y: start_y,
@@ -83,6 +84,7 @@ fn main() {
         ) {
             let original_path_color = 0x800080; // purple
             let smoothed_path_color = 0xFFA500; // orange
+            let waypoints_color = 0x00FFFF; // orange
 
             // Plot the original path
             for cell in &original_path {
@@ -94,7 +96,6 @@ fn main() {
                     }
                 }
             }
-
             // Plot the smoothed path
             for cell in &smoothed_path {
                 for i in 0..pixel_size {
@@ -105,8 +106,19 @@ fn main() {
                     }
                 }
             }
-        }
+            let waypoints = douglas_peucker(&smoothed_path, 2.0);
 
+            // Plot the waypoints path
+            for cell in &waypoints {
+                for i in 0..pixel_size {
+                    for j in 0..pixel_size {
+                        scaled_buffer[((cell.block_y * pixel_size + j) * width
+                            + cell.block_x * pixel_size
+                            + i) as usize] = waypoints_color;
+                    }
+                }
+            }
+        }
         // Draw start and goal positions on the map
         let start_color = 0xFF0000; // red
         let goal_color = 0x00FF00; // green
