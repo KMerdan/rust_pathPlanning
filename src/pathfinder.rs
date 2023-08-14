@@ -1,4 +1,5 @@
 use euclid::{Point2D, Vector2D};
+use std::clone;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::f32::consts::PI;
@@ -13,7 +14,7 @@ pub fn a_star(
     height: usize,
     buffer: &Vec<Vec<u32>>,
     pixel_size: usize,
-) -> Option<Vec<Cell>> {
+) -> Option<(Vec<Cell>, Vec<Cell>)> {
     let mut open_set = BinaryHeap::new();
     let mut came_from = HashMap::new();
     let mut g_score = HashMap::new();
@@ -39,7 +40,9 @@ pub fn a_star(
             }
             path.push(start);
             path.reverse();
-            return Some(path);
+
+            let clone_path = path.clone();
+            return Some((path, clone_path));
         }
 
         for neighbor in current
@@ -71,6 +74,7 @@ pub fn a_star(
     None
 }
 
+
 pub fn bfs(
     start: Cell,
     goal: Cell,
@@ -78,11 +82,21 @@ pub fn bfs(
     height: usize,
     buffer: &mut Vec<Vec<u32>>,
     pixel_size: usize,
-) -> Option<Vec<Cell>> {
+) -> Option<(Vec<Cell>, Vec<Cell>)> {
     let mut queue = VecDeque::new();
     let mut came_from = HashMap::new();
     let mut visited = HashSet::new();
     let min_distance = 10.0;
+
+    if start.block_x >= width || start.block_y >= height {
+        eprintln!("Start cell is out of bounds");
+        return None;
+    }
+
+    if goal.block_x >= width || goal.block_y >= height {
+        eprintln!("Goal cell is out of bounds");
+        return None;
+    }
 
     queue.push_back(start);
     visited.insert(start);
@@ -94,7 +108,8 @@ pub fn bfs(
                 path.push(*parent);
             }
             path.reverse();
-            return Some(path);
+            let clone_path = path.clone();
+            return Some((clone_path, path));
         }
 
         let neighbors = current.neighbors(width, height, &buffer, pixel_size, min_distance);
@@ -107,8 +122,10 @@ pub fn bfs(
         }
     }
 
+    eprintln!("No path found");
     None
 }
+
 
 pub fn bfs_bezier(
     start: Cell,
@@ -153,6 +170,21 @@ pub fn bfs_bezier(
     }
 
     None
+}
+
+fn point_on_bezier_path(path: &Vec<Point2D<f32, ()>>, t: f32) -> Point2D<f32, ()> {
+    let n = path.len() - 1;
+    let mut b = path.clone();
+    for r in 1..=n {
+        for i in 0..=n - r {
+            // b[i] = (1.0 - t) * b[i].to_array() + t * b[i + 1].to_array();
+            let x = (1.0 - t) * b[i].to_array()[0] + t * b[i + 1].to_array()[0];
+            let y = (1.0 - t) * b[i].to_array()[1] + t * b[i + 1].to_array()[1];
+
+            b[i] = Point2D::new(x, y);
+        }
+    }
+    b[0]
 }
 
 fn smooth_path(path: &Vec<Cell>, pixel_size: usize) -> Vec<Cell> {
@@ -217,95 +249,38 @@ fn smooth_path(path: &Vec<Cell>, pixel_size: usize) -> Vec<Cell> {
         .collect::<Vec<_>>()
 }
 
-fn point_on_bezier_path(path: &Vec<Point2D<f32, ()>>, t: f32) -> Point2D<f32, ()> {
-    let n = path.len() - 1;
-    let mut b = path.clone();
-    for r in 1..=n {
-        for i in 0..=n - r {
-            // b[i] = (1.0 - t) * b[i].to_array() + t * b[i + 1].to_array();
-            let x = (1.0 - t) * b[i].to_array()[0] + t * b[i + 1].to_array()[0];
-            let y = (1.0 - t) * b[i].to_array()[1] + t * b[i + 1].to_array()[1];
 
-            b[i] = Point2D::new(x, y);
+pub fn douglas_peucker(points: &[Cell], epsilon: f64) -> Vec<Cell> {
+    let mut dmax = 0.0;
+    let mut index = 0;
+    let end = points.len() - 1;
+
+    for i in 1..end {
+        let d = perpendicular_distance(&points[i], &points[0], &points[end]);
+        if d > dmax {
+            index = i;
+            dmax = d;
         }
     }
-    b[0]
+
+    if dmax > epsilon {
+        let mut result1 = douglas_peucker(&points[..=index], epsilon);
+        let mut result2 = douglas_peucker(&points[index..], epsilon);
+        result1.pop();
+        result1.extend(result2);
+        result1
+    } else {
+        vec![points[0], points[end]]
+    }
 }
 
-pub fn floyd_warshall(
-    start: Cell,
-    goal: Cell,
-    width: usize,
-    height: usize,
-    buffer: &mut Vec<Vec<u32>>,
-    pixel_size: usize,
-) -> Option<(Vec<Cell>, Vec<Cell>)> {
-    // Initialize the distance matrix with infinity for all pairs of cells
-    let mut dist = vec![vec![f32::INFINITY; width]; height];
-    
-    // Set the distance of each cell to itself to 0
-    for i in 0..width {
-        for j in 0..height {
-            if Cell::from_point(Point2D::new(i as f32, j as f32), pixel_size).is_obstacle(&buffer) {
-                continue;
-            }
-            dist[i-1][j-1] = 0.0;
-        }
-    }
-    println!("Dist dimensions: {} x {}", dist.len(), dist[0].len());
-
-    // Update the distance matrix with the actual distances between cells
-    for i in 0..width {
-        for j in 0..height {
-            if Cell::from_point(Point2D::new(i as f32, j as f32), pixel_size).is_obstacle(&buffer) {
-                continue;
-            }
-            let current = Cell::from_point(Point2D::new(i as f32, j as f32), pixel_size);
-            let neighbors = current.neighbors_old(width, height, &buffer, pixel_size);
-            for neighbor in neighbors {
-                let weight = current.distance(&neighbor) as f32;
-                dist[current.to_point(pixel_size).x as usize]
-                    [current.to_point(pixel_size).y as usize] = weight;
-            }
-        }
-    }
-
-    // Run the Floyd-Warshall algorithm to find the shortest path between all pairs of cells
-    for k in 0..width {
-        for i in 0..width {
-            for j in 0..height {
-                if dist[i][k] + dist[k][j] < dist[i][j] {
-                    dist[i][j] = dist[i][k] + dist[k][j];
-                }
-            }
-        }
-    }
-
-    // Reconstruct the path from start to goal using the distance matrix
-    let mut path = vec![start];
-    let mut current = start;
-    while current != goal {
-        let neighbors = current.neighbors_old(width, height, &buffer, pixel_size);
-        let mut next = None;
-        let mut min_dist = f32::INFINITY;
-        for neighbor in neighbors {
-            let dist = dist[neighbor.to_point(pixel_size).x as usize]
-                [neighbor.to_point(pixel_size).y as usize];
-            if dist < min_dist {
-                min_dist = dist;
-                next = Some(neighbor);
-            }
-        }
-        if let Some(next_cell) = next {
-            path.push(next_cell);
-            current = next_cell;
-        } else {
-            return None;
-        }
-    }
-
-    // Smooth the path using a Bezier curve
-    let smoothed_path = smooth_path(&path, pixel_size);
-
-    Some((path, smoothed_path))
+fn perpendicular_distance(point: &Cell, start: &Cell, end: &Cell) -> f64 {
+    let numerator = ((end.block_y as i32 - start.block_y as i32) * point.block_x as i32
+        - (end.block_x as i32 - start.block_x as i32) * point.block_y as i32
+        + end.block_x as i32 * start.block_y as i32
+        - end.block_y as i32 * start.block_x as i32)
+        .abs() as f64;
+    let denominator = ((end.block_y as i32 - start.block_y as i32).pow(2) as f64 + (end.block_x as i32 - start.block_x as i32).pow(2) as f64)
+        .sqrt();
+    numerator / denominator
 }
